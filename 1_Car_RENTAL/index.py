@@ -77,4 +77,31 @@ class Rental_Service:
             f"Vehicles: {len(self.vehicles)}\n"
             f"Active rentals: {len(self.rentals)}"
         )
-print(bike1)
+service = Rental_Service()
+
+if __name__ == "__main__":
+    service = Rental_Service()
+
+    service.add_vehicle(car1)
+    service.add_vehicle(car2)
+    service.add_vehicle(car3)
+
+    service.add_vehicle(bike1)
+    service.add_vehicle(bike2)
+    service.add_vehicle(bike3)
+
+    service.add_vehicle(scooter1)
+    service.add_vehicle(scooter2)
+    service.add_vehicle(scooter3)
+
+    print("Is bike1 available?")
+    print(bike1 in service)
+
+    print("How many vehicles?")
+    print(len(service))
+
+    print("is car2 available?")
+    print(car1 in service)
+
+
+print(car1 in service)
