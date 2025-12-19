@@ -77,4 +77,4 @@ class Rental_Service:
             f"Vehicles: {len(self.vehicles)}\n"
             f"Active rentals: {len(self.rentals)}"
         )
-print(
+print(bike1)
