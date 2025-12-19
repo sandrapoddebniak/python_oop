@@ -42,7 +42,7 @@ class Rental:
         self.days = days
 
     def total_price(self):
-        return self.days * self.vehicle.price_per_dayprint
+        return self.days * self.vehicle.price_per_day
 
     def __str__(self):
         return f"{self.vehicle} for {self.days} days → {self.total_price()} PLN"
@@ -77,4 +77,4 @@ class Rental_Service:
             f"Vehicles: {len(self.vehicles)}\n"
             f"Active rentals: {len(self.rentals)}"
         )
-print(bike2)   
+print(
