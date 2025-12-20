@@ -1,3 +1,8 @@
+# TANK BATTLE GAME
+# Gra w czołgi - strzelanka 2D stworzona w Pygame
+# Autor: Sandra Poddębniak
+# Data: 2025-12-20
+
 import pygame
 import random
 import os

@@ -1,0 +1,195 @@
+# CONWAY'S GAME OF LIFE
+# Symulacja automatu komórkowego w Pygame
+# Implementacja z użyciem programowania obiektowego
+# Autor: Sandra Poddębniak 
+# Data: 2025-12-20
+
+import pygame
+import sys
+import random
+
+# KONFIGURACJA
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+CELL_SIZE = 20
+GRID_WIDTH = WINDOW_WIDTH // CELL_SIZE
+GRID_HEIGHT = WINDOW_HEIGHT // CELL_SIZE
+
+# KOLORY
+WHITE = (255, 255, 255)   # tło
+GRAY = (200, 200, 200)    # siatka
+BLUE_SHADES = [(0, 0, 255), (0, 128, 255), (0, 200, 255)]  # odcienie niebieskiego
+
+# KLASA KOMÓRKI
+class Komorka:
+    def __init__(self, x, y, zywa=False):
+        self.x = x
+        self.y = y
+        self.zywa = zywa
+        self.nastepny_stan = zywa
+    
+    def ustaw_nastepny_stan(self, zywa):
+        self.nastepny_stan = zywa
+    
+    def aktualizuj(self):
+        self.zywa = self.nastepny_stan
+    
+    def zmien_stan(self):
+        self.zywa = not self.zywa
+        self.nastepny_stan = self.zywa
+
+# KLASA SIATKI
+class Siatka:
+    def __init__(self, szer, wys):
+        self.szer = szer
+        self.wys = wys
+        self.generacja = 0
+        self.komorki = [[Komorka(x, y) for x in range(szer)] for y in range(wys)]
+    
+    def pobierz_komorke(self, x, y):
+        if 0 <= x < self.szer and 0 <= y < self.wys:
+            return self.komorki[y][x]
+        return None
+    
+    def policz_sasiadow(self, x, y):
+        count = 0
+        for dx in [-1,0,1]:
+            for dy in [-1,0,1]:
+                if dx == 0 and dy == 0:
+                    continue
+                sasiad = self.pobierz_komorke(x+dx, y+dy)
+                if sasiad and sasiad.zywa:
+                    count += 1
+        return count
+    
+    def oblicz_nastepna_generacje(self):
+        for y in range(self.wys):
+            for x in range(self.szer):
+                kom = self.komorki[y][x]
+                sasiedzi = self.policz_sasiadow(x, y)
+                if kom.zywa:
+                    kom.ustaw_nastepny_stan(sasiedzi in [2,3])
+                else:
+                    kom.ustaw_nastepny_stan(sasiedzi == 3)
+    
+    def aktualizuj(self):
+        self.oblicz_nastepna_generacje()
+        for y in range(self.wys):
+            for x in range(self.szer):
+                self.komorki[y][x].aktualizuj()
+        self.generacja += 1
+    
+    def zmien_komorke(self, x, y):
+        kom = self.pobierz_komorke(x, y)
+        if kom:
+            kom.zmien_stan()
+    
+    def losuj(self, prawdopodobienstwo=0.3):
+        for y in range(self.wys):
+            for x in range(self.szer):
+                self.komorki[y][x].zywa = random.random() < prawdopodobienstwo
+                self.komorki[y][x].nastepny_stan = self.komorki[y][x].zywa
+        self.generacja = 0
+    
+    def wyczysc(self):
+        for y in range(self.wys):
+            for x in range(self.szer):
+                self.komorki[y][x].zywa = False
+                self.komorki[y][x].nastepny_stan = False
+        self.generacja = 0
+
+    def dodaj_glider(self, x, y):
+        wzorzec = [(0,1),(1,2),(2,0),(2,1),(2,2)]
+        for dx, dy in wzorzec:
+            kom = self.pobierz_komorke(x+dx, y+dy)
+            if kom:
+                kom.zywa = True
+
+# KLASA RYSOWNIKA
+class Rysownik:
+    def __init__(self, ekran, rozmiar):
+        self.ekran = ekran
+        self.rozmiar = rozmiar
+        self.czcionka = pygame.font.Font(None, 30)
+    
+    def rysuj_siatke(self, siatka):
+        self.ekran.fill(WHITE)
+        for y in range(siatka.wys):
+            for x in range(siatka.szer):
+                kom = siatka.komorki[y][x]
+                kolor = random.choice(BLUE_SHADES) if kom.zywa else WHITE
+                pygame.draw.rect(self.ekran, kolor, (x*self.rozmiar, y*self.rozmiar, self.rozmiar, self.rozmiar))
+                pygame.draw.rect(self.ekran, GRAY, (x*self.rozmiar, y*self.rozmiar, self.rozmiar, self.rozmiar),1)
+    
+    def rysuj_ui(self, siatka, pauza):
+        gen_text = self.czcionka.render(f"Generacja: {siatka.generacja}", True, (0,0,0))
+        self.ekran.blit(gen_text, (10,10))
+        status_text = self.czcionka.render("PAUZA" if pauza else "RUN", True, (0,0,0))
+        self.ekran.blit(status_text, (10, 40))
+        alive_count = sum(kom.zywa for row in siatka.komorki for kom in row)
+        alive_text = self.czcionka.render(f"Żywe komórki: {alive_count}", True, (0,0,0))
+        self.ekran.blit(alive_text, (10,70))
+        instrukcje = ["SPACE - start/pauza","R - losuj","C - wyczyść","G - glider","ESC - wyjście","Mysz - zmiana stanu"]
+        for i, instr in enumerate(instrukcje):
+            t = pygame.font.Font(None,20).render(instr,True,(0,0,0))
+            self.ekran.blit(t,(10, WINDOW_HEIGHT-120+i*20))
+
+# KLASA GRY
+class GraZycia:
+    def __init__(self):
+        pygame.init()
+        self.ekran = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        pygame.display.set_caption("Gra Życia - Sandi")
+        self.clock = pygame.time.Clock()
+        self.siatka = Siatka(GRID_WIDTH, GRID_HEIGHT)
+        self.rysownik = Rysownik(self.ekran, CELL_SIZE)
+        self.running = True
+        self.pauza = True
+        self.speed = 10
+        self.siatka.losuj(0.25)
+    
+    def obsluga_zdarzen(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.pauza = not self.pauza
+                elif event.key == pygame.K_r:
+                    self.siatka.losuj()
+                    self.pauza = True
+                elif event.key == pygame.K_c:
+                    self.siatka.wyczysc()
+                    self.pauza = True
+                elif event.key == pygame.K_g:  # dodaj glider w środku
+                    self.siatka.dodaj_glider(GRID_WIDTH//2, GRID_HEIGHT//2)
+                elif event.key == pygame.K_ESCAPE:
+                    self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    mx, my = event.pos
+                    gx, gy = mx // CELL_SIZE, my // CELL_SIZE
+                    self.siatka.zmien_komorke(gx, gy)
+    
+    def aktualizacja(self):
+        if not self.pauza:
+            self.siatka.aktualizuj()
+    
+    def render(self):
+        self.rysownik.rysuj_siatke(self.siatka)
+        self.rysownik.rysuj_ui(self.siatka, self.pauza)
+        pygame.display.flip()
+    
+    def run(self):
+        while self.running:
+            self.obsluga_zdarzen()
+            self.aktualizacja()
+            self.render()
+            self.clock.tick(self.speed)
+        pygame.quit()
+        sys.exit()
+
+# URUCHOMIENIE
+if __name__ == "__main__":
+    gra = GraZycia()
+    gra.run()
