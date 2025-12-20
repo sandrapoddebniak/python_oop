@@ -17,7 +17,7 @@ font_big = pygame.font.SysFont("Arial", 48, bold=True)
 
 # ================== TŁO ==================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-image_path = os.path.join(BASE_DIR,"background.jpg.jpg")
+image_path = os.path.join(BASE_DIR, "background.jpg.jpg")  # zmieniony plik
 
 try:
     bg_img = pygame.image.load(image_path).convert()
@@ -27,7 +27,6 @@ except:
     print("Nie mogę wczytać pliku background.jpg, używam ciemnego tła")
     BACKGROUND = pygame.Surface((WIDTH, HEIGHT))
     BACKGROUND.fill((10, 10, 30))
-
 
 # ================== KLASA CZĄSTEK (Ogień) ==================
 class Particle:
@@ -46,6 +45,23 @@ class Particle:
         if self.lifetime > 0:
             size = max(self.lifetime // 5, 1)
             pygame.draw.circle(surf, (255, 165, 0), (int(self.x), int(self.y)), size)
+
+class Explosion:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = 5      # Promień startowy
+        self.lifetime = 20    # Czas trwania w klatkach
+        self.max_radius = 40  # Jak duży ma być wybuch
+
+    def update(self):
+        self.radius += 2
+        self.lifetime -= 1
+
+    def draw(self, surf):
+        if self.lifetime > 0:
+            pygame.draw.circle(surf, (255, 255, 255), (self.x, self.y), self.radius // 2)
+            pygame.draw.circle(surf, (255, 100, 0), (self.x, self.y), self.radius, 2)
 
 # ================== STANY GRY ==================
 MENU = 0
@@ -68,6 +84,7 @@ def reset_game():
         "health": 5,
         "spawn_timer": 0,
         "particles": [],
+        "explosions": [],
     }
 
 game = reset_game()
@@ -76,7 +93,7 @@ game = reset_game()
 running = True
 while running:
     clock.tick(FPS)
-    screen.blit(BACKGROUND, (0,0))  # tło na samym początku
+    screen.blit(BACKGROUND, (0,0))
 
     # ---------- ZDARZENIA ----------
     for event in pygame.event.get():
@@ -88,7 +105,7 @@ while running:
                 game = reset_game()
                 state = PLAYING
 
-            if state == PLAYING and event.key == pygame.K_SPACE:
+            elif state == PLAYING and event.key == pygame.K_SPACE:
                 bullet = pygame.Rect(
                     game["player"].centerx - 2,
                     game["player"].top,
@@ -115,7 +132,7 @@ while running:
             game["enemies"].append(enemy)
             game["spawn_timer"] = 0
 
-        # Ruch przeciwników
+        # Ruch przeciwników i kolizje z graczem
         for e in game["enemies"][:]:
             e.y += 3 + game["score"] // 1000
             if e.colliderect(game["player"]):
@@ -126,28 +143,32 @@ while running:
             elif e.top > HEIGHT:
                 game["enemies"].remove(e)
 
-        # Pociski
+        # Ruch pocisków i kolizje z wrogami
         for b in game["bullets"][:]:
             b.y -= 8
             if b.bottom < 0:
                 game["bullets"].remove(b)
             for e in game["enemies"][:]:
                 if b.colliderect(e):
-                    if b in game["bullets"]:
-                        game["bullets"].remove(b)
-                    if e in game["enemies"]:
-                        game["enemies"].remove(e)
+                    game["bullets"].remove(b)
+                    game["enemies"].remove(e)
                     game["score"] += 100
+                    # Dodaj wybuch
+                    game["explosions"].append(Explosion(e.centerx, e.centery))
                     break
 
         # Dodawanie cząstek ognia pod graczem
         game["particles"].append(Particle(game["player"].centerx, game["player"].bottom))
 
         # Aktualizacja cząstek
-        for p in game["particles"][:]:
+        for p in game["particles"]:
             p.update()
-            if p.lifetime <= 0:
-                game["particles"].remove(p)
+        game["particles"] = [p for p in game["particles"] if p.lifetime > 0]
+
+        # Aktualizacja wybuchów
+        for ex in game["explosions"]:
+            ex.update()
+        game["explosions"] = [ex for ex in game["explosions"] if ex.lifetime > 0]
 
     # ---------- RYSOWANIE ----------
     if state == MENU:
@@ -155,9 +176,12 @@ while running:
         draw_text("SPACJA – START", font_score, (0,255,200), WIDTH//2, HEIGHT//2 + 30)
 
     elif state == PLAYING:
-        # Cząstki ognia
+        # Cząstki
         for p in game["particles"]:
             p.draw(screen)
+        # Wybuchy
+        for ex in game["explosions"]:
+            ex.draw(screen)
 
         # Gracz – trójkąt
         pygame.draw.polygon(screen, (0,150,255), [
